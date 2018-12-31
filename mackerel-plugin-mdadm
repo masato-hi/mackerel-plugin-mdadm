@@ -1,0 +1,61 @@
+#!/bin/bash
+
+meta() {
+  echo '# mackerel-agent-plugin'
+  cat <<EOS
+{
+  "graphs": {
+    "mdadm.#": {
+      "label": "mdadm",
+      "unit": "integer",
+      "metrics": [
+        {
+          "name": "active",
+          "label": "Active Devices",
+          "stacked": false
+        },
+        {
+          "name": "working",
+          "label": "Working Devices",
+          "stacked": false
+        },
+        {
+          "name": "failed",
+          "label": "Failed Devices",
+          "stacked": false
+        },
+        {
+          "name": "spare",
+          "label": "Spare Devices",
+          "stacked": false
+        }
+      ]
+    }
+  }
+}
+EOS
+}
+
+metrics() {
+  local time=$(date +"%s")
+  for device in $(ls /dev/md* |  sed 's/\/dev\///'); do
+    local detail=$(mdadm --detail "/dev/${device}" 2>/dev/null)
+
+    local active=$(echo "${detail}" | grep 'Active Devices : ' | awk '{print $4}')
+    local working=$(echo "${detail}" | grep 'Working Devices : ' | awk '{print $4}')
+    local failed=$(echo "${detail}" | grep 'Failed Devices : ' | awk '{print $4}')
+    local spare=$(echo "${detail}" | grep 'Spare Devices : ' | awk '{print $4}')
+
+    echo -e "mdadm.${device}.active\t${active}\t${time}"
+    echo -e "mdadm.${device}.working\t${working}\t${time}"
+    echo -e "mdadm.${device}.failed\t${failed}\t${time}"
+    echo -e "mdadm.${device}.spare\t${spare}\t${time}"
+  done
+}
+
+if [ -n "${MACKEREL_AGENT_PLUGIN_META}" ]; then
+  meta
+else
+  metrics
+fi
+
